@@ -31,7 +31,7 @@
 #if defined(__GNUC__)
 	// gcc or gcc-compatible compiler
 	#define CSE6230_RESTRICT __restrict__
-#elif defined(__MSVC)
+#elif defined(_MSC_VER)
 	// msvc or msvc-compatible compiler
 	#define CSE6230_RESTRICT __restrict
 #else
@@ -39,9 +39,34 @@
 	#define CSE6230_RESTRICT
 #endif
 
+#if defined(__GNUC__)
+	#if defined(__SSE2__)
+		#define CSE6230_SSE2_INTRINSICS_SUPPORTED
+	#endif
+	#if defined(__AVX__)
+		#define CSE6230_AVX_INTRINSICS_SUPPORTED
+	#endif
+#elif defined(_MSC_VER)
+	#if defined(_M_IX86) || defined(_M_X64)
+		#define CSE6230_SSE2_INTRINSICS_SUPPORTED
+		#define CSE6230_AVX_INTRINSICS_SUPPORTED
+	#endif
+#else
+	#warning Compiler is not recognized and intrinsic functions are not used.
+#endif
+
+
 typedef void (*vector_add_function)(const double*, const double*, double*, size_t);
 
 extern "C" void vector_add_naive(const double *CSE6230_RESTRICT xPointer, const double *CSE6230_RESTRICT yPointer, double *CSE6230_RESTRICT sumPointer, size_t length);
+
+#ifdef CSE6230_SSE2_INTRINSICS_SUPPORTED
 extern "C" void vector_add_sse2(const double *CSE6230_RESTRICT xPointer, const double *CSE6230_RESTRICT yPointer, double *CSE6230_RESTRICT sumPointer, size_t length);
 extern "C" void vector_add_sse2_load_aligned(const double *CSE6230_RESTRICT xPointer, const double *CSE6230_RESTRICT yPointer, double *CSE6230_RESTRICT sumPointer, size_t length);
 extern "C" void vector_add_sse2_store_aligned(const double *CSE6230_RESTRICT xPointer, const double *CSE6230_RESTRICT yPointer, double *CSE6230_RESTRICT sumPointer, size_t length);
+#endif
+#ifdef CSE6230_AVX_INTRINSICS_SUPPORTED
+extern "C" void vector_add_avx(const double *CSE6230_RESTRICT xPointer, const double *CSE6230_RESTRICT yPointer, double *CSE6230_RESTRICT sumPointer, size_t length);
+extern "C" void vector_add_avx_load_aligned(const double *CSE6230_RESTRICT xPointer, const double *CSE6230_RESTRICT yPointer, double *CSE6230_RESTRICT sumPointer, size_t length);
+extern "C" void vector_add_avx_store_aligned(const double *CSE6230_RESTRICT xPointer, const double *CSE6230_RESTRICT yPointer, double *CSE6230_RESTRICT sumPointer, size_t length);
+#endif

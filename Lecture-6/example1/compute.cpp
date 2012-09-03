@@ -40,6 +40,7 @@ void vector_add_naive(const double *CSE6230_RESTRICT xPointer, const double *CSE
 	}
 }
 
+#ifdef CSE6230_SSE2_INTRINSICS_SUPPORTED
 void vector_add_sse2(const double *CSE6230_RESTRICT xPointer, const double *CSE6230_RESTRICT yPointer, double *CSE6230_RESTRICT sumPointer, size_t length) {
 	// Process arrays by two elements at an iteration
 	for (; length >= 2; length -= 2) {
@@ -66,7 +67,9 @@ void vector_add_sse2(const double *CSE6230_RESTRICT xPointer, const double *CSE6
 		sumPointer += 1;
 	}
 }
+#endif
 
+#ifdef CSE6230_SSE2_INTRINSICS_SUPPORTED
 void vector_add_sse2_load_aligned(const double *CSE6230_RESTRICT xPointer, const double *CSE6230_RESTRICT yPointer, double *CSE6230_RESTRICT sumPointer, size_t length) {
 	// Process by one element until xPointer (the first input array) is aligned on 16
 	for (; (size_t(xPointer) % size_t(16) != 0) && (length != 0); length -= 1) {
@@ -106,7 +109,9 @@ void vector_add_sse2_load_aligned(const double *CSE6230_RESTRICT xPointer, const
 		sumPointer += 1;
 	}
 }
+#endif
 
+#ifdef CSE6230_SSE2_INTRINSICS_SUPPORTED
 void vector_add_sse2_store_aligned(const double *CSE6230_RESTRICT xPointer, const double *CSE6230_RESTRICT yPointer, double *CSE6230_RESTRICT sumPointer, size_t length) {
 	// Process by one element until sumPointer (the output array) is aligned on 16
 	for (; (size_t(sumPointer) % size_t(16) != 0) && (length != 0); length -= 1) {
@@ -146,3 +151,117 @@ void vector_add_sse2_store_aligned(const double *CSE6230_RESTRICT xPointer, cons
 		sumPointer += 1;
 	}
 }
+#endif
+
+#ifdef CSE6230_AVX_INTRINSICS_SUPPORTED
+void vector_add_avx(const double *CSE6230_RESTRICT xPointer, const double *CSE6230_RESTRICT yPointer, double *CSE6230_RESTRICT sumPointer, size_t length) {
+	// Process arrays by two elements at an iteration
+	for (; length >= 4; length -= 4) {
+		const __m256d x = _mm256_loadu_pd(xPointer); // Load two x elements
+		const __m256d y = _mm256_loadu_pd(yPointer); // Load two y elements
+		const __m256d sum = _mm256_add_pd(x, y); // Compute two sum elements
+		_mm256_storeu_pd(sumPointer, sum); // Store two sum elements
+		
+		// Advance pointers to the next two elements
+		xPointer += 4;
+		yPointer += 4;
+		sumPointer += 4;
+	}
+	// Process remaining elements (if any)
+	for (; length != 0; length -= 1) {
+		const double x = *xPointer; // Load x
+		const double y = *yPointer; // Load y
+		const double sum = x + y; // Compute sum
+		*sumPointer = sum; // Store sum
+
+		// Advance pointers to the next elements
+		xPointer += 1;
+		yPointer += 1;
+		sumPointer += 1;
+	}
+}
+#endif
+
+#ifdef CSE6230_AVX_INTRINSICS_SUPPORTED
+void vector_add_avx_load_aligned(const double *CSE6230_RESTRICT xPointer, const double *CSE6230_RESTRICT yPointer, double *CSE6230_RESTRICT sumPointer, size_t length) {
+	// Process by one element until xPointer (the first input array) is aligned on 32
+	for (; (size_t(xPointer) % size_t(32) != 0) && (length != 0); length -= 1) {
+		const double x = *xPointer; // Load x
+		const double y = *yPointer; // Load y
+		const double sum = x + y; // Compute sum
+		*sumPointer = sum; // Store sum
+
+		// Advance pointers to the next elements
+		xPointer += 1;
+		yPointer += 1;
+		sumPointer += 1;
+	}
+	// Process arrays by two elements at an iteration
+	// xPointer is aligned on 32, so we can use aligned load instruction
+	for (; length >= 4; length -= 4) {
+		const __m256d x = _mm256_load_pd(xPointer); // Aligned (!) load two x elements
+		const __m256d y = _mm256_loadu_pd(yPointer); // Load two y elements
+		const __m256d sum = _mm256_add_pd(x, y); // Compute two sum elements
+		_mm256_storeu_pd(sumPointer, sum); // Store two sum elements
+		
+		// Advance pointers to the next two elements
+		xPointer += 4;
+		yPointer += 4;
+		sumPointer += 4;
+	}
+	// Process remaining elements (if any)
+	for (; length != 0; length -= 1) {
+		const double x = *xPointer; // Load x
+		const double y = *yPointer; // Load y
+		const double sum = x + y; // Compute sum
+		*sumPointer = sum; // Store sum
+
+		// Advance pointers to the next elements
+		xPointer += 1;
+		yPointer += 1;
+		sumPointer += 1;
+	}
+}
+#endif
+
+#ifdef CSE6230_AVX_INTRINSICS_SUPPORTED
+void vector_add_avx_store_aligned(const double *CSE6230_RESTRICT xPointer, const double *CSE6230_RESTRICT yPointer, double *CSE6230_RESTRICT sumPointer, size_t length) {
+	// Process by one element until sumPointer (the output array) is aligned on 16
+	for (; (size_t(sumPointer) % size_t(32) != 0) && (length != 0); length -= 1) {
+		const double x = *xPointer; // Load x
+		const double y = *yPointer; // Load y
+		const double sum = x + y; // Compute sum
+		*sumPointer = sum; // Store sum
+
+		// Advance pointers to the next elements
+		xPointer += 1;
+		yPointer += 1;
+		sumPointer += 1;
+	}
+	// Process arrays by two elements at an iteration
+	// sumPointer is aligned on 16, so we can use aligned store instruction
+	for (; length >= 4; length -= 4) {
+		const __m256d x = _mm256_loadu_pd(xPointer); // Load two x elements
+		const __m256d y = _mm256_loadu_pd(yPointer); // Load two y elements
+		const __m256d sum = _mm256_add_pd(x, y); // Compute two sum elements
+		_mm256_store_pd(sumPointer, sum); // Aligned (!) store two sum elements
+		
+		// Advance pointers to the next two elements
+		xPointer += 4;
+		yPointer += 4;
+		sumPointer += 4;
+	}
+	// Process remaining elements (if any)
+	for (; length != 0; length -= 1) {
+		const double x = *xPointer; // Load x
+		const double y = *yPointer; // Load y
+		const double sum = x + y; // Compute sum
+		*sumPointer = sum; // Store sum
+
+		// Advance pointers to the next elements
+		xPointer += 1;
+		yPointer += 1;
+		sumPointer += 1;
+	}
+}
+#endif
