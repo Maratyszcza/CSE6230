@@ -62,6 +62,40 @@ static void report_timings(const char* method_name, uint64_t aligned_ticks, uint
 	);
 }
 
+static void test_vector_add(const char* method_name, vector_add_function vector_add, const double* x_array, const double* y_array, double* sum_array, size_t array_size, size_t experiments_count, size_t misalignment_bound) {
+	const uint64_t aligned_vector_add_ticks = time_vector_add(vector_add, x_array, y_array, sum_array, array_size, experiments_count);
+	uint64_t min_vector_add_ticks = uint64_t(-1);
+	uint64_t max_vector_add_ticks = 0;
+	for (size_t x_array_misalignment = 0; x_array_misalignment < misalignment_bound / sizeof(double); x_array_misalignment += 1) {
+		for (size_t y_array_misalignment = 0; y_array_misalignment < misalignment_bound / sizeof(double); y_array_misalignment += 1) {
+			for (size_t sum_array_misalignment = 0; sum_array_misalignment < misalignment_bound / sizeof(double); sum_array_misalignment += 1) {
+				const uint64_t vector_add_ticks = time_vector_add(vector_add,
+					x_array + x_array_misalignment,
+					y_array + y_array_misalignment,
+					sum_array + sum_array_misalignment,
+					array_size, experiments_count);
+				min_vector_add_ticks = min(min_vector_add_ticks, vector_add_ticks);
+				max_vector_add_ticks = max(max_vector_add_ticks, vector_add_ticks);
+			}
+		}
+	}
+	report_timings(method_name, aligned_vector_add_ticks, min_vector_add_ticks, max_vector_add_ticks, array_size);
+}
+
+static void test_vector_max(const char* method_name, vector_max_function vector_max, const double* x_array, size_t array_size, size_t experiments_count, size_t misalignment_bound) {
+	const uint64_t aligned_vector_max_ticks = time_vector_max(vector_max, x_array, array_size, experiments_count);
+	uint64_t min_vector_max_ticks = uint64_t(-1);
+	uint64_t max_vector_max_ticks = 0;
+	for (size_t x_array_misalignment = 0; x_array_misalignment < misalignment_bound / sizeof(double); x_array_misalignment += 1) {
+		const uint64_t vector_max_ticks = time_vector_max(vector_max,
+			x_array + x_array_misalignment,
+			array_size, experiments_count);
+		min_vector_max_ticks = min(min_vector_max_ticks, vector_max_ticks);
+		max_vector_max_ticks = max(max_vector_max_ticks, vector_max_ticks);
+	}
+	report_timings(method_name, aligned_vector_max_ticks, min_vector_max_ticks, max_vector_max_ticks, array_size);
+}
+
 static void report_timings(const char* method_name, uint64_t aligned_ticks, size_t array_size) {
 	printf("%20s\t%2.2lf\n", method_name, double(aligned_ticks) / double(array_size));
 }
@@ -76,42 +110,10 @@ int main(int argc, char** argv) {
 	
 	printf("Add Method\tAligned CPE\tMin CPE\tMax CPE\n");
 	
-	const uint64_t aligned_vector_add_naive_ticks = time_vector_add(&vector_add_naive, x_array, y_array, sum_array, array_size, experiments_count);
-	uint64_t min_vector_add_naive_ticks = uint64_t(-1);
-	uint64_t max_vector_add_naive_ticks = 0;
-	for (size_t x_array_misalignment = 0; x_array_misalignment < 16 / sizeof(double); x_array_misalignment += 1) {
-		for (size_t y_array_misalignment = 0; y_array_misalignment < 16 / sizeof(double); y_array_misalignment += 1) {
-			for (size_t sum_array_misalignment = 0; sum_array_misalignment < 16 / sizeof(double); sum_array_misalignment += 1) {
-				const uint64_t vector_add_naive_ticks = time_vector_add(&vector_add_naive,
-					x_array + x_array_misalignment,
-					y_array + y_array_misalignment,
-					sum_array + sum_array_misalignment,
-					array_size, experiments_count);
-				min_vector_add_naive_ticks = min(min_vector_add_naive_ticks, vector_add_naive_ticks);
-				max_vector_add_naive_ticks = max(max_vector_add_naive_ticks, vector_add_naive_ticks);
-			}
-		}
-	}
-	report_timings("Naive", aligned_vector_add_naive_ticks, min_vector_add_naive_ticks, max_vector_add_naive_ticks, array_size);
+	test_vector_add("Naive", &vector_add_naive, x_array, y_array, sum_array, array_size, experiments_count, 16);
 	
 	#ifdef CSE6230_SSE2_INTRINSICS_SUPPORTED
-	const uint64_t aligned_vector_add_sse2_ticks = time_vector_add(&vector_add_sse2, x_array, y_array, sum_array, array_size, experiments_count);
-	uint64_t min_vector_add_sse2_ticks = uint64_t(-1);
-	uint64_t max_vector_add_sse2_ticks = 0;
-	for (size_t x_array_misalignment = 0; x_array_misalignment < 16 / sizeof(double); x_array_misalignment += 1) {
-		for (size_t y_array_misalignment = 0; y_array_misalignment < 16 / sizeof(double); y_array_misalignment += 1) {
-			for (size_t sum_array_misalignment = 0; sum_array_misalignment < 16 / sizeof(double); sum_array_misalignment += 1) {
-				const uint64_t vector_add_sse2_ticks = time_vector_add(&vector_add_sse2,
-					x_array + x_array_misalignment,
-					y_array + y_array_misalignment,
-					sum_array + sum_array_misalignment,
-					array_size, experiments_count);
-				min_vector_add_sse2_ticks = min(min_vector_add_sse2_ticks, vector_add_sse2_ticks);
-				max_vector_add_sse2_ticks = max(max_vector_add_sse2_ticks, vector_add_sse2_ticks);
-			}
-		}
-	}
-	report_timings("SSE2", aligned_vector_add_sse2_ticks, min_vector_add_sse2_ticks, max_vector_add_sse2_ticks, array_size);
+	test_vector_add("SSE2", &vector_add_sse2, x_array, y_array, sum_array, array_size, experiments_count, 16);
 	#endif
 	
 	#ifdef CSE6230_SSE2_INTRINSICS_SUPPORTED
@@ -120,63 +122,15 @@ int main(int argc, char** argv) {
 	#endif
 	
 	#ifdef CSE6230_SSE2_INTRINSICS_SUPPORTED
-	const uint64_t aligned_vector_add_sse2_load_aligned_ticks = time_vector_add(&vector_add_sse2_load_aligned, x_array, y_array, sum_array, array_size, experiments_count);
-	uint64_t min_vector_add_sse2_load_aligned_ticks = uint64_t(-1);
-	uint64_t max_vector_add_sse2_load_aligned_ticks = 0;
-	for (size_t x_array_misalignment = 0; x_array_misalignment < 16 / sizeof(double); x_array_misalignment += 1) {
-		for (size_t y_array_misalignment = 0; y_array_misalignment < 16 / sizeof(double); y_array_misalignment += 1) {
-			for (size_t sum_array_misalignment = 0; sum_array_misalignment < 16 / sizeof(double); sum_array_misalignment += 1) {
-				const uint64_t vector_add_sse2_load_aligned_ticks = time_vector_add(&vector_add_sse2_load_aligned,
-					x_array + x_array_misalignment,
-					y_array + y_array_misalignment,
-					sum_array + sum_array_misalignment,
-					array_size, experiments_count);
-				min_vector_add_sse2_load_aligned_ticks = min(min_vector_add_sse2_load_aligned_ticks, vector_add_sse2_load_aligned_ticks);
-				max_vector_add_sse2_load_aligned_ticks = max(max_vector_add_sse2_load_aligned_ticks, vector_add_sse2_load_aligned_ticks);
-			}
-		}
-	}
-	report_timings("SSE2 + aligned load", aligned_vector_add_sse2_load_aligned_ticks, min_vector_add_sse2_load_aligned_ticks, max_vector_add_sse2_load_aligned_ticks, array_size);
+	test_vector_add("SSE2 + aligned load", &vector_add_sse2_load_aligned, x_array, y_array, sum_array, array_size, experiments_count, 16);
 	#endif
 	
 	#ifdef CSE6230_SSE2_INTRINSICS_SUPPORTED
-	const uint64_t aligned_vector_add_sse2_store_aligned_ticks = time_vector_add(&vector_add_sse2_store_aligned, x_array, y_array, sum_array, array_size, experiments_count);
-	uint64_t min_vector_add_sse2_store_aligned_ticks = uint64_t(-1);
-	uint64_t max_vector_add_sse2_store_aligned_ticks = 0;
-	for (size_t x_array_misalignment = 0; x_array_misalignment < 16 / sizeof(double); x_array_misalignment += 1) {
-		for (size_t y_array_misalignment = 0; y_array_misalignment < 16 / sizeof(double); y_array_misalignment += 1) {
-			for (size_t sum_array_misalignment = 0; sum_array_misalignment < 16 / sizeof(double); sum_array_misalignment += 1) {
-				const uint64_t vector_add_sse2_store_aligned_ticks = time_vector_add(&vector_add_sse2_store_aligned,
-					x_array + x_array_misalignment,
-					y_array + y_array_misalignment,
-					sum_array + sum_array_misalignment,
-					array_size, experiments_count);
-				min_vector_add_sse2_store_aligned_ticks = min(min_vector_add_sse2_store_aligned_ticks, vector_add_sse2_store_aligned_ticks);
-				max_vector_add_sse2_store_aligned_ticks = max(max_vector_add_sse2_store_aligned_ticks, vector_add_sse2_store_aligned_ticks);
-			}
-		}
-	}
-	report_timings("SSE2 + aligned store", aligned_vector_add_sse2_store_aligned_ticks, min_vector_add_sse2_store_aligned_ticks, max_vector_add_sse2_store_aligned_ticks, array_size);
+	test_vector_add("SSE2 + aligned store", &vector_add_sse2_store_aligned, x_array, y_array, sum_array, array_size, experiments_count, 16);
 	#endif
 	
 	#ifdef CSE6230_AVX_INTRINSICS_SUPPORTED
-	const uint64_t aligned_vector_add_avx_ticks = time_vector_add(&vector_add_avx, x_array, y_array, sum_array, array_size, experiments_count);
-	uint64_t min_vector_add_avx_ticks = uint64_t(-1);
-	uint64_t max_vector_add_avx_ticks = 0;
-	for (size_t x_array_misalignment = 0; x_array_misalignment < 32 / sizeof(double); x_array_misalignment += 1) {
-		for (size_t y_array_misalignment = 0; y_array_misalignment < 32 / sizeof(double); y_array_misalignment += 1) {
-			for (size_t sum_array_misalignment = 0; sum_array_misalignment < 32 / sizeof(double); sum_array_misalignment += 1) {
-				const uint64_t vector_add_avx_ticks = time_vector_add(&vector_add_avx,
-					x_array + x_array_misalignment,
-					y_array + y_array_misalignment,
-					sum_array + sum_array_misalignment,
-					array_size, experiments_count);
-				min_vector_add_avx_ticks = min(min_vector_add_avx_ticks, vector_add_avx_ticks);
-				max_vector_add_avx_ticks = max(max_vector_add_avx_ticks, vector_add_avx_ticks);
-			}
-		}
-	}
-	report_timings("AVX", aligned_vector_add_avx_ticks, min_vector_add_avx_ticks, max_vector_add_avx_ticks, array_size);
+	test_vector_add("AVX", &vector_add_avx, x_array, y_array, sum_array, array_size, experiments_count, 32);
 	#endif
 	
 	#ifdef CSE6230_AVX_INTRINSICS_SUPPORTED
@@ -185,113 +139,31 @@ int main(int argc, char** argv) {
 	#endif
 	
 	#ifdef CSE6230_AVX_INTRINSICS_SUPPORTED
-	const uint64_t aligned_vector_add_avx_load_aligned_ticks = time_vector_add(&vector_add_avx_load_aligned, x_array, y_array, sum_array, array_size, experiments_count);
-	uint64_t min_vector_add_avx_load_aligned_ticks = uint64_t(-1);
-	uint64_t max_vector_add_avx_load_aligned_ticks = 0;
-	for (size_t x_array_misalignment = 0; x_array_misalignment < 32 / sizeof(double); x_array_misalignment += 1) {
-		for (size_t y_array_misalignment = 0; y_array_misalignment < 32 / sizeof(double); y_array_misalignment += 1) {
-			for (size_t sum_array_misalignment = 0; sum_array_misalignment < 32 / sizeof(double); sum_array_misalignment += 1) {
-				const uint64_t vector_add_avx_load_aligned_ticks = time_vector_add(&vector_add_avx_load_aligned,
-					x_array + x_array_misalignment,
-					y_array + y_array_misalignment,
-					sum_array + sum_array_misalignment,
-					array_size, experiments_count);
-				min_vector_add_avx_load_aligned_ticks = min(min_vector_add_avx_load_aligned_ticks, vector_add_avx_load_aligned_ticks);
-				max_vector_add_avx_load_aligned_ticks = max(max_vector_add_avx_load_aligned_ticks, vector_add_avx_load_aligned_ticks);
-			}
-		}
-	}
-	report_timings("AVX + aligned load", aligned_vector_add_avx_load_aligned_ticks, min_vector_add_avx_load_aligned_ticks, max_vector_add_avx_load_aligned_ticks, array_size);
+	test_vector_add("AVX + aligned load", &vector_add_avx_load_aligned, x_array, y_array, sum_array, array_size, experiments_count, 32);
 	#endif
 	
 	#ifdef CSE6230_AVX_INTRINSICS_SUPPORTED
-	const uint64_t aligned_vector_add_avx_store_aligned_ticks = time_vector_add(&vector_add_avx_store_aligned, x_array, y_array, sum_array, array_size, experiments_count);
-	uint64_t min_vector_add_avx_store_aligned_ticks = uint64_t(-1);
-	uint64_t max_vector_add_avx_store_aligned_ticks = 0;
-	for (size_t x_array_misalignment = 0; x_array_misalignment < 32 / sizeof(double); x_array_misalignment += 1) {
-		for (size_t y_array_misalignment = 0; y_array_misalignment < 32 / sizeof(double); y_array_misalignment += 1) {
-			for (size_t sum_array_misalignment = 0; sum_array_misalignment < 32 / sizeof(double); sum_array_misalignment += 1) {
-				const uint64_t vector_add_avx_store_aligned_ticks = time_vector_add(&vector_add_avx_store_aligned,
-					x_array + x_array_misalignment,
-					y_array + y_array_misalignment,
-					sum_array + sum_array_misalignment,
-					array_size, experiments_count);
-				min_vector_add_avx_store_aligned_ticks = min(min_vector_add_avx_store_aligned_ticks, vector_add_avx_store_aligned_ticks);
-				max_vector_add_avx_store_aligned_ticks = max(max_vector_add_avx_store_aligned_ticks, vector_add_avx_store_aligned_ticks);
-			}
-		}
-	}
-	report_timings("AVX + aligned store", aligned_vector_add_avx_store_aligned_ticks, min_vector_add_avx_store_aligned_ticks, max_vector_add_avx_store_aligned_ticks, array_size);
+	test_vector_add("AVX + aligned store", &vector_add_avx_store_aligned, x_array, y_array, sum_array, array_size, experiments_count, 32);
 	#endif
 	
 	printf("Max Method\tAligned CPE\tMin CPE\tMax CPE\n");
 
-	const uint64_t aligned_vector_max_naive_ticks = time_vector_max(&vector_max_naive, x_array, array_size, experiments_count);
-	uint64_t min_vector_max_naive_ticks = uint64_t(-1);
-	uint64_t max_vector_max_naive_ticks = 0;
-	for (size_t x_array_misalignment = 0; x_array_misalignment < 16 / sizeof(double); x_array_misalignment += 1) {
-		const uint64_t vector_max_naive_ticks = time_vector_max(&vector_max_naive,
-			x_array + x_array_misalignment,
-			array_size, experiments_count);
-		min_vector_max_naive_ticks = min(min_vector_max_naive_ticks, vector_max_naive_ticks);
-		max_vector_max_naive_ticks = max(max_vector_max_naive_ticks, vector_max_naive_ticks);
-	}
-	report_timings("Naive", aligned_vector_max_naive_ticks, min_vector_max_naive_ticks, max_vector_max_naive_ticks, array_size);
+	test_vector_max("Naive", &vector_max_naive, x_array, array_size, experiments_count, 16);
 
 	#ifdef CSE6230_SSE2_INTRINSICS_SUPPORTED
-	const uint64_t aligned_vector_max_sse2_ticks = time_vector_max(&vector_max_sse2, x_array, array_size, experiments_count);
-	uint64_t min_vector_max_sse2_ticks = uint64_t(-1);
-	uint64_t max_vector_max_sse2_ticks = 0;
-	for (size_t x_array_misalignment = 0; x_array_misalignment < 16 / sizeof(double); x_array_misalignment += 1) {
-		const uint64_t vector_max_sse2_ticks = time_vector_max(&vector_max_sse2,
-			x_array + x_array_misalignment,
-			array_size, experiments_count);
-		min_vector_max_sse2_ticks = min(min_vector_max_sse2_ticks, vector_max_sse2_ticks);
-		max_vector_max_sse2_ticks = max(max_vector_max_sse2_ticks, vector_max_sse2_ticks);
-	}
-	report_timings("SSE2", aligned_vector_max_sse2_ticks, min_vector_max_sse2_ticks, max_vector_max_sse2_ticks, array_size);
+	test_vector_max("SSE2", &vector_max_sse2, x_array, array_size, experiments_count, 16);
 	#endif
 
 	#ifdef CSE6230_SSE2_INTRINSICS_SUPPORTED
-	const uint64_t aligned_vector_max_sse2_load_aligned_ticks = time_vector_max(&vector_max_sse2_load_aligned, x_array, array_size, experiments_count);
-	uint64_t min_vector_max_sse2_load_aligned_ticks = uint64_t(-1);
-	uint64_t max_vector_max_sse2_load_aligned_ticks = 0;
-	for (size_t x_array_misalignment = 0; x_array_misalignment < 16 / sizeof(double); x_array_misalignment += 1) {
-		const uint64_t vector_max_sse2_load_aligned_ticks = time_vector_max(&vector_max_sse2_load_aligned,
-			x_array + x_array_misalignment,
-			array_size, experiments_count);
-		min_vector_max_sse2_load_aligned_ticks = min(min_vector_max_sse2_load_aligned_ticks, vector_max_sse2_load_aligned_ticks);
-		max_vector_max_sse2_load_aligned_ticks = max(max_vector_max_sse2_load_aligned_ticks, vector_max_sse2_load_aligned_ticks);
-	}
-	report_timings("SSE2 + aligned load", aligned_vector_max_sse2_load_aligned_ticks, min_vector_max_sse2_load_aligned_ticks, max_vector_max_sse2_load_aligned_ticks, array_size);
+	test_vector_max("SSE2 + aligned load", &vector_max_sse2_load_aligned, x_array, array_size, experiments_count, 16);
 	#endif
 
 	#ifdef CSE6230_AVX_INTRINSICS_SUPPORTED
-	const uint64_t aligned_vector_max_avx_ticks = time_vector_max(&vector_max_avx, x_array, array_size, experiments_count);
-	uint64_t min_vector_max_avx_ticks = uint64_t(-1);
-	uint64_t max_vector_max_avx_ticks = 0;
-	for (size_t x_array_misalignment = 0; x_array_misalignment < 32 / sizeof(double); x_array_misalignment += 1) {
-		const uint64_t vector_max_avx_ticks = time_vector_max(&vector_max_avx,
-			x_array + x_array_misalignment,
-			array_size, experiments_count);
-		min_vector_max_avx_ticks = min(min_vector_max_avx_ticks, vector_max_avx_ticks);
-		max_vector_max_avx_ticks = max(max_vector_max_avx_ticks, vector_max_avx_ticks);
-	}
-	report_timings("AVX", aligned_vector_max_avx_ticks, min_vector_max_avx_ticks, max_vector_max_avx_ticks, array_size);
+	test_vector_max("AVX", &vector_max_avx, x_array, array_size, experiments_count, 32);
 	#endif
 
 	#ifdef CSE6230_AVX_INTRINSICS_SUPPORTED
-	const uint64_t aligned_vector_max_avx_load_aligned_ticks = time_vector_max(&vector_max_avx_load_aligned, x_array, array_size, experiments_count);
-	uint64_t min_vector_max_avx_load_aligned_ticks = uint64_t(-1);
-	uint64_t max_vector_max_avx_load_aligned_ticks = 0;
-	for (size_t x_array_misalignment = 0; x_array_misalignment < 32 / sizeof(double); x_array_misalignment += 1) {
-		const uint64_t vector_max_avx_load_aligned_ticks = time_vector_max(&vector_max_avx_load_aligned,
-			x_array + x_array_misalignment,
-			array_size, experiments_count);
-		min_vector_max_avx_load_aligned_ticks = min(min_vector_max_avx_load_aligned_ticks, vector_max_avx_load_aligned_ticks);
-		max_vector_max_avx_load_aligned_ticks = max(max_vector_max_avx_load_aligned_ticks, vector_max_avx_load_aligned_ticks);
-	}
-	report_timings("AVX + aligned load", aligned_vector_max_avx_load_aligned_ticks, min_vector_max_avx_load_aligned_ticks, max_vector_max_avx_load_aligned_ticks, array_size);
+	test_vector_max("AVX + aligned load", &vector_max_avx_load_aligned, x_array, array_size, experiments_count, 32);
 	#endif
 
 	free(x_array);
