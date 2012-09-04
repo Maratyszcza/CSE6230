@@ -18,18 +18,7 @@ inline static uint64_t get_cpu_ticks_start() {
 }
 
 inline static uint64_t get_cpu_ticks_end() {
-#if 0
-	uint32_t low, high;
-	__asm__ __volatile__ (
-		"rdtscp;"
-	: "=a"(low), "=d"(high)
-	:
-	: "%rcx"
-	);
-	return (uint64_t(high) << 32) | uint64_t(low);
-#else
 	return get_cpu_ticks_start();
-#endif	
 }
 
 inline static uint64_t min(uint64_t a, uint64_t b) {
