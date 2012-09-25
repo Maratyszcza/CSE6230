@@ -183,7 +183,7 @@ void vector3d_dot_products_fma4(const double *CSE6230_RESTRICT vPointer, const d
 		const __m128d uv0Z_uv1X = _mm_mul_pd(v0Z_v1X, u0Z_u1X);
 		
 		// Multiply-accumulate full dot products
-		const __m128d dp0_dp1 = _mm_fmadd_pd(v0Y_v1Z, u0Y_u1Z, _mm_fmadd_pd(v0X_v1Y, u0X_u1Y, uv0Z_uv1X));
+		const __m128d dp0_dp1 = _mm_macc_pd(v0Y_v1Z, u0Y_u1Z, _mm_macc_pd(v0X_v1Y, u0X_u1Y, uv0Z_uv1X));
 		
 		_mm_storeu_pd(dpPointer, dp0_dp1); // Store two dot products
 		

@@ -65,7 +65,7 @@ static void report_timings(const char* method_name, uint64_t aligned_ticks, size
 }
 
 int main(int argc, char** argv) {
-	size_t experiments_count = 100000;
+	size_t experiments_count = 1000000;
 	
 	size_t vectors_count = 150;
 	const size_t components_per_vector = 3;
@@ -131,6 +131,26 @@ int main(int argc, char** argv) {
 		}
 	}
 	report_timings("SSE3", aligned_vector3d_dot_products_sse3_ticks, min_vector3d_dot_products_sse3_ticks, max_vector3d_dot_products_sse3_ticks, vectors_count);
+	#endif
+
+	#ifdef CSE6230_FMA4_INTRINSICS_SUPPORTED
+	const uint64_t aligned_vector3d_dot_products_fma4_ticks = time_dot_product(&vector3d_dot_products_fma4, v_vectors, u_vectors, dp_array, vectors_count, experiments_count);
+	uint64_t min_vector3d_dot_products_fma4_ticks = uint64_t(-1);
+	uint64_t max_vector3d_dot_products_fma4_ticks = 0;
+	for (size_t v_pointer_misalignment = 0; v_pointer_misalignment < 16 / sizeof(double); v_pointer_misalignment += 1) {
+		for (size_t u_pointer_misalignment = 0; u_pointer_misalignment < 16 / sizeof(double); u_pointer_misalignment += 1) {
+			for (size_t dp_array_misalignment = 0; dp_array_misalignment < 16 / sizeof(double); dp_array_misalignment += 1) {
+				const uint64_t vector3d_dot_products_fma4_ticks = time_dot_product(&vector3d_dot_products_fma4,
+					v_vectors + v_pointer_misalignment,
+					u_vectors + u_pointer_misalignment,
+					dp_array + dp_array_misalignment,
+					vectors_count, experiments_count);
+				min_vector3d_dot_products_fma4_ticks = min(min_vector3d_dot_products_fma4_ticks, vector3d_dot_products_fma4_ticks);
+				max_vector3d_dot_products_fma4_ticks = max(max_vector3d_dot_products_fma4_ticks, vector3d_dot_products_fma4_ticks);
+			}
+		}
+	}
+	report_timings("FMA4", aligned_vector3d_dot_products_fma4_ticks, min_vector3d_dot_products_fma4_ticks, max_vector3d_dot_products_fma4_ticks, vectors_count);
 	#endif
 
 	free(v_vectors);
