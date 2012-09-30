@@ -55,7 +55,7 @@ static uint64_t time_vector_max(vector_max_function vector_max, const double* el
 }
 
 static void report_timings(const char* method_name, uint64_t aligned_ticks, uint64_t min_ticks, uint64_t max_ticks, size_t array_size) {
-	printf("%20s\t%2.2lf\t%2.2lf\t%2.2lf\n", method_name,
+	printf("%30s\t%10.2lf\t%10.2lf\t%10.2lf\n", method_name,
 		double(aligned_ticks) / double(array_size),
 		double(min_ticks) / double(array_size),
 		double(max_ticks) / double(array_size)
@@ -97,7 +97,7 @@ static void test_vector_max(const char* method_name, vector_max_function vector_
 }
 
 static void report_timings(const char* method_name, uint64_t aligned_ticks, size_t array_size) {
-	printf("%20s\t%2.2lf\n", method_name, double(aligned_ticks) / double(array_size));
+	printf("%30s\t%10.2lf\n", method_name, double(aligned_ticks) / double(array_size));
 }
 
 int main(int argc, char** argv) {
@@ -108,62 +108,50 @@ int main(int argc, char** argv) {
 	double *y_array = (double*)memalign(32, array_size * sizeof(double) + 32);
 	double *sum_array = (double*)memalign(32, array_size * sizeof(double) + 32);
 	
-	printf("Add Method\tAligned CPE\tMin CPE\tMax CPE\n");
+	printf("%30s\t%10s\t%10s\t%10s\n", "Add Method", "Aligned CPE", "Min CPE", "Max CPE");
 	
 	test_vector_add("Naive", &vector_add_naive, x_array, y_array, sum_array, array_size, experiments_count, 16);
 	
 	#ifdef CSE6230_SSE2_INTRINSICS_SUPPORTED
-	test_vector_add("SSE2", &vector_add_sse2, x_array, y_array, sum_array, array_size, experiments_count, 16);
-	#endif
-	
-	#ifdef CSE6230_SSE2_INTRINSICS_SUPPORTED
-	const uint64_t aligned_vector_add_sse2_aligned_ticks = time_vector_add(&vector_add_sse2_aligned, x_array, y_array, sum_array, array_size, experiments_count);
-	report_timings("SSE2 + aligned array", aligned_vector_add_sse2_aligned_ticks, array_size);
-	#endif
-	
-	#ifdef CSE6230_SSE2_INTRINSICS_SUPPORTED
-	test_vector_add("SSE2 + aligned load", &vector_add_sse2_load_aligned, x_array, y_array, sum_array, array_size, experiments_count, 16);
-	#endif
-	
-	#ifdef CSE6230_SSE2_INTRINSICS_SUPPORTED
-	test_vector_add("SSE2 + aligned store", &vector_add_sse2_store_aligned, x_array, y_array, sum_array, array_size, experiments_count, 16);
+		test_vector_add("SSE2", &vector_add_sse2, x_array, y_array, sum_array, array_size, experiments_count, 16);
+
+		const uint64_t aligned_vector_add_sse2_aligned_ticks = time_vector_add(&vector_add_sse2_aligned, x_array, y_array, sum_array, array_size, experiments_count);
+		report_timings("SSE2 + aligned array", aligned_vector_add_sse2_aligned_ticks, array_size);
+
+		test_vector_add("SSE2 + aligned load", &vector_add_sse2_load_aligned, x_array, y_array, sum_array, array_size, experiments_count, 16);
+
+		test_vector_add("SSE2 + aligned store", &vector_add_sse2_store_aligned, x_array, y_array, sum_array, array_size, experiments_count, 16);
 	#endif
 	
 	#ifdef CSE6230_AVX_INTRINSICS_SUPPORTED
-	test_vector_add("AVX", &vector_add_avx, x_array, y_array, sum_array, array_size, experiments_count, 32);
+		test_vector_add("AVX", &vector_add_avx, x_array, y_array, sum_array, array_size, experiments_count, 32);
+
+		const uint64_t aligned_vector_add_avx_aligned_ticks = time_vector_add(&vector_add_avx_aligned, x_array, y_array, sum_array, array_size, experiments_count);
+		report_timings("AVX + aligned array", aligned_vector_add_avx_aligned_ticks, array_size);
+		
+		test_vector_add("AVX + aligned load", &vector_add_avx_load_aligned, x_array, y_array, sum_array, array_size, experiments_count, 32);
+		
+		test_vector_add("AVX + aligned store", &vector_add_avx_store_aligned, x_array, y_array, sum_array, array_size, experiments_count, 32);
 	#endif
 	
-	#ifdef CSE6230_AVX_INTRINSICS_SUPPORTED
-	const uint64_t aligned_vector_add_avx_aligned_ticks = time_vector_add(&vector_add_avx_aligned, x_array, y_array, sum_array, array_size, experiments_count);
-	report_timings("AVX + aligned array", aligned_vector_add_avx_aligned_ticks, array_size);
-	#endif
-	
-	#ifdef CSE6230_AVX_INTRINSICS_SUPPORTED
-	test_vector_add("AVX + aligned load", &vector_add_avx_load_aligned, x_array, y_array, sum_array, array_size, experiments_count, 32);
-	#endif
-	
-	#ifdef CSE6230_AVX_INTRINSICS_SUPPORTED
-	test_vector_add("AVX + aligned store", &vector_add_avx_store_aligned, x_array, y_array, sum_array, array_size, experiments_count, 32);
-	#endif
-	
-	printf("Max Method\tAligned CPE\tMin CPE\tMax CPE\n");
+	printf("%30s\t%10s\t%10s\t%10s\n", "Max Method", "Aligned CPE", "Min CPE", "Max CPE");
 
 	test_vector_max("Naive", &vector_max_naive, x_array, array_size, experiments_count, 16);
 
 	#ifdef CSE6230_SSE2_INTRINSICS_SUPPORTED
-	test_vector_max("SSE2", &vector_max_sse2, x_array, array_size, experiments_count, 16);
-	#endif
+		test_vector_max("SSE2", &vector_max_sse2, x_array, array_size, experiments_count, 16);
 
-	#ifdef CSE6230_SSE2_INTRINSICS_SUPPORTED
-	test_vector_max("SSE2 + aligned load", &vector_max_sse2_load_aligned, x_array, array_size, experiments_count, 16);
-	#endif
+		test_vector_max("SSE2 + aligned load", &vector_max_sse2_load_aligned, x_array, array_size, experiments_count, 16);
 
-	#ifdef CSE6230_AVX_INTRINSICS_SUPPORTED
-	test_vector_max("AVX", &vector_max_avx, x_array, array_size, experiments_count, 32);
+		test_vector_max("SSE2 + aligned load + unrolling", &vector_max_sse2_load_aligned_unrolled, x_array, array_size, experiments_count, 16);
 	#endif
 
 	#ifdef CSE6230_AVX_INTRINSICS_SUPPORTED
-	test_vector_max("AVX + aligned load", &vector_max_avx_load_aligned, x_array, array_size, experiments_count, 32);
+		test_vector_max("AVX", &vector_max_avx, x_array, array_size, experiments_count, 32);
+
+		test_vector_max("AVX + aligned load", &vector_max_avx_load_aligned, x_array, array_size, experiments_count, 32);
+
+		test_vector_max("AVX + aligned load + unrolling", &vector_max_avx_load_aligned_unrolled, x_array, array_size, experiments_count, 32);
 	#endif
 
 	free(x_array);

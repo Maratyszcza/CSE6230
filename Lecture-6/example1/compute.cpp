@@ -86,9 +86,7 @@ void vector_add_sse2(const double *CSE6230_RESTRICT xPointer, const double *CSE6
 		sumPointer += 1;
 	}
 }
-#endif
 
-#ifdef CSE6230_SSE2_INTRINSICS_SUPPORTED
 void vector_add_sse2_aligned(const double *CSE6230_RESTRICT xPointer, const double *CSE6230_RESTRICT yPointer, double *CSE6230_RESTRICT sumPointer, size_t length) {
 	// Process arrays by two elements at an iteration
 	for (; length >= 2; length -= 2) {
@@ -115,9 +113,7 @@ void vector_add_sse2_aligned(const double *CSE6230_RESTRICT xPointer, const doub
 		sumPointer += 1;
 	}
 }
-#endif
 
-#ifdef CSE6230_SSE2_INTRINSICS_SUPPORTED
 void vector_add_sse2_load_aligned(const double *CSE6230_RESTRICT xPointer, const double *CSE6230_RESTRICT yPointer, double *CSE6230_RESTRICT sumPointer, size_t length) {
 	// Process by one element until xPointer (the first input array) is aligned on 16
 	for (; (size_t(xPointer) % size_t(16) != 0) && (length != 0); length -= 1) {
@@ -157,9 +153,7 @@ void vector_add_sse2_load_aligned(const double *CSE6230_RESTRICT xPointer, const
 		sumPointer += 1;
 	}
 }
-#endif
 
-#ifdef CSE6230_SSE2_INTRINSICS_SUPPORTED
 void vector_add_sse2_store_aligned(const double *CSE6230_RESTRICT xPointer, const double *CSE6230_RESTRICT yPointer, double *CSE6230_RESTRICT sumPointer, size_t length) {
 	// Process by one element until sumPointer (the output array) is aligned on 16
 	for (; (size_t(sumPointer) % size_t(16) != 0) && (length != 0); length -= 1) {
@@ -228,9 +222,7 @@ void vector_add_avx(const double *CSE6230_RESTRICT xPointer, const double *CSE62
 		sumPointer += 1;
 	}
 }
-#endif
 
-#ifdef CSE6230_AVX_INTRINSICS_SUPPORTED
 void vector_add_avx_aligned(const double *CSE6230_RESTRICT xPointer, const double *CSE6230_RESTRICT yPointer, double *CSE6230_RESTRICT sumPointer, size_t length) {
 	// Process arrays by two elements at an iteration
 	for (; length >= 4; length -= 4) {
@@ -257,9 +249,7 @@ void vector_add_avx_aligned(const double *CSE6230_RESTRICT xPointer, const doubl
 		sumPointer += 1;
 	}
 }
-#endif
 
-#ifdef CSE6230_AVX_INTRINSICS_SUPPORTED
 void vector_add_avx_load_aligned(const double *CSE6230_RESTRICT xPointer, const double *CSE6230_RESTRICT yPointer, double *CSE6230_RESTRICT sumPointer, size_t length) {
 	// Process by one element until xPointer (the first input array) is aligned on 32
 	for (; (size_t(xPointer) % size_t(32) != 0) && (length != 0); length -= 1) {
@@ -299,9 +289,7 @@ void vector_add_avx_load_aligned(const double *CSE6230_RESTRICT xPointer, const 
 		sumPointer += 1;
 	}
 }
-#endif
 
-#ifdef CSE6230_AVX_INTRINSICS_SUPPORTED
 void vector_add_avx_store_aligned(const double *CSE6230_RESTRICT xPointer, const double *CSE6230_RESTRICT yPointer, double *CSE6230_RESTRICT sumPointer, size_t length) {
 	// Process by one element until sumPointer (the output array) is aligned on 32
 	for (; (size_t(sumPointer) % size_t(32) != 0) && (length != 0); length -= 1) {
@@ -380,9 +368,7 @@ void vector_max_sse2(const double *CSE6230_RESTRICT arrayPointer, double *CSE623
 	}
 	*maxPointer = max;
 }
-#endif
 
-#ifdef CSE6230_SSE2_INTRINSICS_SUPPORTED
 void vector_max_sse2_load_aligned(const double *CSE6230_RESTRICT arrayPointer, double *CSE6230_RESTRICT maxPointer, size_t length) {
 	double max = minus_inf();
 	// Process by one element until arrayPointer (the input array) is aligned on 16
@@ -402,6 +388,58 @@ void vector_max_sse2_load_aligned(const double *CSE6230_RESTRICT arrayPointer, d
 		// Advance pointers to the next two elements
 		arrayPointer += 2;
 	}
+	const __m128d maxX2High = _mm_unpackhi_pd(maxX2, maxX2); // Both elements of maxX2High contain the high part of maxX2
+	const __m128d maxX2Reduced = _mm_max_sd(maxX2, maxX2High); // The low element of maxX2Reduced contains the max of two elements in maxX2
+	max = _mm_cvtsd_f64(maxX2Reduced);
+	// Process remaining elements (if any)
+	for (; length != 0; length -= 1) {
+		const double element = *arrayPointer; // Load array element
+		max = fmax(max, element);
+
+		// Advance pointers to the next element
+		arrayPointer += 1;
+	}
+	*maxPointer = max;
+}
+
+void vector_max_sse2_load_aligned_unrolled(const double *CSE6230_RESTRICT arrayPointer, double *CSE6230_RESTRICT maxPointer, size_t length) {
+	double max = minus_inf();
+	// Process by one element until arrayPointer (the input array) is aligned on 16
+	for (; (size_t(arrayPointer) % size_t(16) != 0) && (length != 0); length -= 1) {
+		const double element = *arrayPointer; // Load array element
+		max = fmax(max, element);
+
+		// Advance pointer to the next elements
+		arrayPointer += 1;
+	}
+	// Process arrays by ten elements at an iteration
+	__m128d maxX2 = _mm_set1_pd(max);
+	__m128d maxY2 = maxX2;
+	__m128d maxZ2 = maxX2;
+	__m128d maxW2 = maxX2;
+	__m128d maxT2 = maxX2;
+	for (; length >= 10; length -= 10) {
+		// Aligned load ten (!) array elements
+		const __m128d elementX2 = _mm_load_pd(arrayPointer);
+		const __m128d elementY2 = _mm_load_pd(arrayPointer + 2);
+		const __m128d elementZ2 = _mm_load_pd(arrayPointer + 4);
+		const __m128d elementW2 = _mm_load_pd(arrayPointer + 6);
+		const __m128d elementT2 = _mm_load_pd(arrayPointer + 8);
+		maxX2 = _mm_max_pd(maxX2, elementX2);
+		maxY2 = _mm_max_pd(maxY2, elementY2);
+		maxZ2 = _mm_max_pd(maxZ2, elementZ2);
+		maxW2 = _mm_max_pd(maxW2, elementW2);
+		maxT2 = _mm_max_pd(maxT2, elementT2);
+		
+		// Advance pointers to the next ten elements
+		arrayPointer += 10;
+	}
+	// Reduce ten element into two
+	maxY2 = _mm_max_pd(maxY2, maxZ2);
+	maxW2 = _mm_max_pd(maxW2, maxT2);
+	maxY2 = _mm_max_pd(maxY2, maxW2);
+	maxX2 = _mm_max_pd(maxX2, maxY2);
+	
 	const __m128d maxX2High = _mm_unpackhi_pd(maxX2, maxX2); // Both elements of maxX2High contain the high part of maxX2
 	const __m128d maxX2Reduced = _mm_max_sd(maxX2, maxX2High); // The low element of maxX2Reduced contains the max of two elements in maxX2
 	max = _mm_cvtsd_f64(maxX2Reduced);
@@ -444,9 +482,7 @@ void vector_max_avx(const double *CSE6230_RESTRICT arrayPointer, double *CSE6230
 	}
 	*maxPointer = max;
 }
-#endif
 
-#ifdef CSE6230_AVX_INTRINSICS_SUPPORTED
 void vector_max_avx_load_aligned(const double *CSE6230_RESTRICT arrayPointer, double *CSE6230_RESTRICT maxPointer, size_t length) {
 	double max = minus_inf();
 	// Process by one element until arrayPointer (the input array) is aligned on 32
@@ -466,6 +502,61 @@ void vector_max_avx_load_aligned(const double *CSE6230_RESTRICT arrayPointer, do
 		// Advance pointers to the next four elements
 		arrayPointer += 4;
 	}
+	const __m128d maxX4High = _mm256_extractf128_pd(maxX4, 1); // Contains the two high elements of maxX4
+	const __m128d maxX4Low = _mm256_castpd256_pd128(maxX4); // Contains the two low elements of maxX4
+	const __m128d maxX4PartiallyReduced = _mm_max_pd(maxX4Low, maxX4High); // Contains two elements - partially reduced sum of four elements in maxX4
+	const __m128d maxX4PartiallyReducedHigh = _mm_unpackhi_pd(maxX4PartiallyReduced, maxX4PartiallyReduced); // Both elements of maxX4PartiallyReducedHigh contain the high part of maxX4PartiallyReduced
+	const __m128d maxX4Reduced = _mm_max_sd(maxX4PartiallyReduced, maxX4PartiallyReducedHigh); // The low element of maxX4Reduced contains the max of four elements in maxX4
+	max = _mm_cvtsd_f64(maxX4Reduced);
+	// Process remaining elements (if any)
+	for (; length != 0; length -= 1) {
+		const double element = *arrayPointer; // Load array elements
+		max = fmax(max, element);
+
+		// Advance pointers to the next element
+		arrayPointer += 1;
+	}
+	*maxPointer = max;
+}
+
+void vector_max_avx_load_aligned_unrolled(const double *CSE6230_RESTRICT arrayPointer, double *CSE6230_RESTRICT maxPointer, size_t length) {
+	double max = minus_inf();
+	// Process by one element until arrayPointer (the input array) is aligned on 32
+	for (; (size_t(arrayPointer) % size_t(32) != 0) && (length != 0); length -= 1) {
+		const double element = *arrayPointer; // Load array element
+		max = fmax(max, element);
+
+		// Advance pointer to the next elements
+		arrayPointer += 1;
+	}
+	// Process arrays by twenty elements at an iteration
+	__m256d maxX4 = _mm256_set1_pd(max);
+	__m256d maxY4 = maxX4;
+	__m256d maxZ4 = maxX4;
+	__m256d maxW4 = maxX4;
+	__m256d maxT4 = maxX4;
+	for (; length >= 20; length -= 20) {
+		// Aligned load twenty (!) array elements
+		const __m256d elementX4 = _mm256_load_pd(arrayPointer);
+		const __m256d elementY4 = _mm256_load_pd(arrayPointer + 4);
+		const __m256d elementZ4 = _mm256_load_pd(arrayPointer + 8);
+		const __m256d elementW4 = _mm256_load_pd(arrayPointer + 12);
+		const __m256d elementT4 = _mm256_load_pd(arrayPointer + 16);
+		maxX4 = _mm256_max_pd(maxX4, elementX4);
+		maxY4 = _mm256_max_pd(maxY4, elementY4);
+		maxZ4 = _mm256_max_pd(maxZ4, elementZ4);
+		maxW4 = _mm256_max_pd(maxW4, elementW4);
+		maxT4 = _mm256_max_pd(maxT4, elementT4);
+		
+		// Advance pointers to the next four elements
+		arrayPointer += 20;
+	}
+	// Reduce twenty elements into four
+	maxY4 = _mm256_max_pd(maxY4, maxZ4);
+	maxW4 = _mm256_max_pd(maxW4, maxT4);
+	maxY4 = _mm256_max_pd(maxY4, maxW4);
+	maxX4 = _mm256_max_pd(maxX4, maxY4);
+	
 	const __m128d maxX4High = _mm256_extractf128_pd(maxX4, 1); // Contains the two high elements of maxX4
 	const __m128d maxX4Low = _mm256_castpd256_pd128(maxX4); // Contains the two low elements of maxX4
 	const __m128d maxX4PartiallyReduced = _mm_max_pd(maxX4Low, maxX4High); // Contains two elements - partially reduced sum of four elements in maxX4

@@ -78,8 +78,10 @@ extern "C" void vector_max_naive(const double *CSE6230_RESTRICT arrayPointer, do
 #ifdef CSE6230_SSE2_INTRINSICS_SUPPORTED
 extern "C" void vector_max_sse2(const double *CSE6230_RESTRICT arrayPointer, double *CSE6230_RESTRICT maxPointer, size_t length);
 extern "C" void vector_max_sse2_load_aligned(const double *CSE6230_RESTRICT arrayPointer, double *CSE6230_RESTRICT maxPointer, size_t length);
+extern "C" void vector_max_sse2_load_aligned_unrolled(const double *CSE6230_RESTRICT arrayPointer, double *CSE6230_RESTRICT maxPointer, size_t length);
 #endif
 #ifdef CSE6230_AVX_INTRINSICS_SUPPORTED
 extern "C" void vector_max_avx(const double *CSE6230_RESTRICT arrayPointer, double *CSE6230_RESTRICT maxPointer, size_t length);
 extern "C" void vector_max_avx_load_aligned(const double *CSE6230_RESTRICT arrayPointer, double *CSE6230_RESTRICT maxPointer, size_t length);
+extern "C" void vector_max_avx_load_aligned_unrolled(const double *CSE6230_RESTRICT arrayPointer, double *CSE6230_RESTRICT maxPointer, size_t length);
 #endif
